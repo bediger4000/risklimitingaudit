@@ -40,38 +40,44 @@ func main() {
 	winner, winningPercentage := countVotes(candidates, *ballotCount, *lie)
 	fmt.Printf("%s declared winner, %02f%%\n", winner, winningPercentage)
 
-	recount := auditBallots(ballots, *ballotCount, winner, winningPercentage, *minimizeTolerance)
+	recount, ballotsExamined := auditBallots(ballots, *ballotCount, winner, winningPercentage, *minimizeTolerance)
 
+	fmt.Printf("%d ballots of %d examined in audit\n", ballotsExamined, *ballotCount)
 	if recount {
 		fmt.Printf("hand recount to confirm\n")
+		return
 	}
+	fmt.Printf("Audit confirms winner\n")
 }
 
 // auditVote runs the Ballot-polling audit of section III.a of
 // A Gentle Introduction to Risk-limiting Audits,
 // Mark Lindemann, Philip B. Stark,
 // IEEE SECURITY AND PRIVACY, SPECIAL ISSUE ON ELECTRONIC VOTING, 2012. LAST EDITED 16 MARCH 2012.
-func auditBallots(ballots []string, ballotCount int, winner string, winningPercentage float64, minimizeTolerance bool) bool {
+func auditBallots(ballots []string, ballotCount int, winner string, winningPercentage float64, minimizeTolerance bool) (bool, int) {
 
-	// tolerance - "Let t be a positive "tolerance" small enough
-	// that when t is subtracted from the winner's vote share
-	// s, the difference is still greater than 50%.
-	t := winningPercentage - 49.9
+	winningProportion := winningPercentage / 100.0
+
+	// tolerance - "Let t be a positive number small enough
+	// that when t is subtracted from the the winner's proportion
+	// the difference is still greater than 50%.
+	t := winningProportion - 0.50 - 0.0005
 	if minimizeTolerance {
-		// This is harder
+		t = 0.1 * (winningProportion - 0.50)
 	}
 
-	matchFactor := (winningPercentage - t) / 50.0
-	notMatchFactor := 1.0 - matchFactor
-	fmt.Printf("Audit, tolerance %.04f%%, match %.05f, not match %.05f\n", t, matchFactor, notMatchFactor)
+	matchFactor := 2. * (winningProportion - t)
+	notMatchFactor := 2. * (1.0 - (winningProportion - t))
 
 	T := 1.0
 
-	for ballotsExamined := 1; true; ballotsExamined++ {
+	var ballotsExamined int
+
+	for ballotsExamined = 1; true; ballotsExamined++ {
 		// "2) Select a ballot at random from the ballots cast in the contest"
 		// Lindemann & Stark suggest a programmatic random number genertor,
-		// I'm going to use a built-in. We don't have to track whether we've seen
-		// the ballot before.
+		// I'm going to use a built-in.
+		// We don't have to track whether we've seen the ballot before.
 		ballotNumber := rand.Intn(ballotCount)
 
 		// Steps (4) and (5), multiply T by a factor
@@ -80,8 +86,6 @@ func auditBallots(ballots []string, ballotCount int, winner string, winningPerce
 			factor = notMatchFactor
 		}
 		T *= factor
-
-		fmt.Printf("audit ballot %d: choice %q, factor %.05f, T now %.05f\n", ballotsExamined, ballots[ballotNumber], factor, T)
 
 		// "6) If T > 9.9, the audit has provided strong evidence that
 		// the reported outcome is correct: Stop."
@@ -92,11 +96,11 @@ func auditBallots(ballots []string, ballotCount int, winner string, winningPerce
 		// "7) If T < 0.011, perform a full hand count to determine
 		// who won. Otherwise, return to step 2."
 		if T < 0.011 {
-			return true
+			return true, ballotsExamined
 		}
 	}
 
-	return false
+	return false, ballotsExamined
 }
 
 func parseCandidates(candidateProportions string) ([]*candidate, error) {
