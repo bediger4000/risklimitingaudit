@@ -147,11 +147,11 @@ func parseCandidates(candidateProportions string) ([]*candidate, error) {
 	}
 
 	if !over50Percent {
-		return nil, errors.New("no candidate received over 50%% of vote\n")
+		return nil, errors.New("no candidate received over 50%% of vote")
 	}
 
 	if sum < 99. || sum > 100. {
-		return nil, fmt.Errorf("sum of percentages %.02f, != 100.\n", sum)
+		return nil, fmt.Errorf("sum of percentages %.02f, != 100", sum)
 	}
 
 	return candidates, nil
