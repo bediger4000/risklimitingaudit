@@ -106,4 +106,9 @@ Hand recount to confirm
 The audit does detect that "B" did not actually receive 51% of the votes,
 and indicates a recount should occur.
 
-```
+## Experience
+
+Futzing around with the `rla` program does show that the number of ballots
+to check in an audit goes up when the winner gets closer to 50% of the votes.
+The audit does reliably detect when the winner has more than 50% of the vote,
+or when the runnerup is claimed as the winner.
