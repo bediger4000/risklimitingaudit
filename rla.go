@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -52,7 +53,11 @@ func main() {
 
 	fmt.Printf("Vote counting results:\n%s declared winner, with %.04f%%\n", winner, winningPercentage)
 
-	recount, ballotsExamined := auditBallots(ballots, *ballotCount, winner, winningPercentage, *tolerancePercent)
+	recount, ballotsExamined, err := auditBallots(ballots, *ballotCount, winner, winningPercentage, *tolerancePercent)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "problem in ballot audit: %v\n", err)
+		return
+	}
 
 	fmt.Printf("Audit results:\n%d ballots of %d examined\n", ballotsExamined, *ballotCount)
 	if recount {
@@ -66,7 +71,9 @@ func main() {
 // A Gentle Introduction to Risk-limiting Audits,
 // Mark Lindemann, Philip B. Stark,
 // IEEE SECURITY AND PRIVACY, SPECIAL ISSUE ON ELECTRONIC VOTING, 2012. LAST EDITED 16 MARCH 2012.
-func auditBallots(ballots []string, ballotCount int, winner string, winningPercentage float64, tolerancePercent float64) (bool, int) {
+// It returns the winner, a bool (true if a recount should be performed),
+// and an error, if non-nil means the other two results are invalid.
+func auditBallots(ballots []string, ballotCount int, winner string, winningPercentage float64, tolerancePercent float64) (bool, int, error) {
 
 	winningProportion := winningPercentage / 100.0
 
@@ -78,6 +85,10 @@ func auditBallots(ballots []string, ballotCount int, winner string, winningPerce
 
 	if tolerancePercent > 0.0 {
 		t = tolerancePercent / 100.0
+	}
+
+	if (winningProportion - t) < 0.50 {
+		return false, -1, fmt.Errorf("improper tolerance %.02f too large", t)
 	}
 
 	matchFactor := 2. * (winningProportion - t)
@@ -110,11 +121,11 @@ func auditBallots(ballots []string, ballotCount int, winner string, winningPerce
 		// "7) If T < 0.011, perform a full hand count to determine
 		// who won. Otherwise, return to step 2."
 		if T < 0.011 {
-			return true, ballotsExamined
+			return true, ballotsExamined, nil
 		}
 	}
 
-	return false, ballotsExamined
+	return false, ballotsExamined, nil
 }
 
 func parseCandidates(candidateProportions string) ([]*candidate, error) {
