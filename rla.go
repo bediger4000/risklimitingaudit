@@ -58,10 +58,12 @@ func auditBallots(ballots []string, ballotCount int, winner string, winningPerce
 
 	winningProportion := winningPercentage / 100.0
 
-	// tolerance - "Let t be a positive number small enough
+	// tolerance - Let t be a positive number small enough
 	// that when t is subtracted from the the winner's proportion
 	// the difference is still greater than 50%.
+	// Set t to the maximum possible tolerance
 	t := winningProportion - 0.50 - 0.0005
+
 	if minimizeTolerance {
 		t = 0.1 * (winningProportion - 0.50)
 	}
