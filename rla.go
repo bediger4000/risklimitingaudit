@@ -21,7 +21,7 @@ func main() {
 	lie := flag.Bool("z", false, "maybe lie about who won")
 	ballotCount := flag.Int("b", 1000, "count of ballots")
 	votingFineness := flag.Int("f", 1000, "voting fineness")
-	minimizeTolerance := flag.Bool("m", false, "minimize tolerance in audit")
+	tolerancePercent := flag.Float64("t", 0.0, "tolerance ballot audit, 0.0 chooses maximum tolerance")
 	flag.Parse()
 
 	candidates, err := parseCandidates(*candidateProportions)
@@ -29,6 +29,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	fmt.Printf("Desired results for %d ballots:\n", *ballotCount)
 	for _, candidate := range candidates {
 		fmt.Printf("Candidate %s: %.02f%%\n", candidate.name, candidate.percentage)
 	}
@@ -37,14 +38,25 @@ func main() {
 
 	ballots := createVotes(voting, *ballotCount, *votingFineness)
 
+	fmt.Printf("Generated results:\nCandidate\tCount\tDesired\tGenerated\n")
+	for _, c := range candidates {
+		fmt.Printf("%s\t\t%d\t%.02f\t%.02f\n",
+			c.name,
+			c.votes,
+			c.percentage,
+			float64(c.votes)/float64(*ballotCount)*100.,
+		)
+	}
+
 	winner, winningPercentage := countVotes(candidates, *ballotCount, *lie)
-	fmt.Printf("%s declared winner, %02f%%\n", winner, winningPercentage)
 
-	recount, ballotsExamined := auditBallots(ballots, *ballotCount, winner, winningPercentage, *minimizeTolerance)
+	fmt.Printf("Vote counting results:\n%s declared winner, with %.04f%%\n", winner, winningPercentage)
 
-	fmt.Printf("%d ballots of %d examined in audit\n", ballotsExamined, *ballotCount)
+	recount, ballotsExamined := auditBallots(ballots, *ballotCount, winner, winningPercentage, *tolerancePercent)
+
+	fmt.Printf("Audit results:\n%d ballots of %d examined\n", ballotsExamined, *ballotCount)
 	if recount {
-		fmt.Printf("hand recount to confirm\n")
+		fmt.Printf("Hand recount to confirm\n")
 		return
 	}
 	fmt.Printf("Audit confirms winner\n")
@@ -54,7 +66,7 @@ func main() {
 // A Gentle Introduction to Risk-limiting Audits,
 // Mark Lindemann, Philip B. Stark,
 // IEEE SECURITY AND PRIVACY, SPECIAL ISSUE ON ELECTRONIC VOTING, 2012. LAST EDITED 16 MARCH 2012.
-func auditBallots(ballots []string, ballotCount int, winner string, winningPercentage float64, minimizeTolerance bool) (bool, int) {
+func auditBallots(ballots []string, ballotCount int, winner string, winningPercentage float64, tolerancePercent float64) (bool, int) {
 
 	winningProportion := winningPercentage / 100.0
 
@@ -64,8 +76,8 @@ func auditBallots(ballots []string, ballotCount int, winner string, winningPerce
 	// Set t to the maximum possible tolerance
 	t := winningProportion - 0.50 - 0.0005
 
-	if minimizeTolerance {
-		t = 0.1 * (winningProportion - 0.50)
+	if tolerancePercent > 0.0 {
+		t = tolerancePercent / 100.0
 	}
 
 	matchFactor := 2. * (winningProportion - t)
@@ -192,12 +204,6 @@ func countVotes(candidates []*candidate, ballotCount int, lie bool) (string, flo
 			winningPercentage = float64(c.votes) / float64(ballotCount) * 100.
 
 		}
-		fmt.Printf("%s\t%d\t%.02f\t%.02f\n",
-			c.name,
-			c.votes,
-			c.percentage,
-			float64(c.votes)/float64(ballotCount)*100.,
-		)
 	}
 
 	if lie {
