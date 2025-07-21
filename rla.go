@@ -48,7 +48,7 @@ func main() {
 		)
 	}
 
-	winner, winningPercentage := countVotes(candidates, *ballotCount, *lie)
+	winner, winningPercentage := findWinner(candidates, *ballotCount, *lie)
 
 	fmt.Printf("Vote counting results:\n%s declared winner, with %.04f%%\n", winner, winningPercentage)
 
@@ -157,6 +157,11 @@ func parseCandidates(candidateProportions string) ([]*candidate, error) {
 	return candidates, nil
 }
 
+// createVoting sets up a slice of struct candidate of length
+// fineness. The idea is that the program can choose a random
+// integer [0,fineness) and increment the .votes element of the
+// struct pointed to by slice[randomValue]. There are many duplicate
+// pointers to struct candidate in the return array.
 func createVoting(candidates []*candidate, fineness int) []*candidate {
 
 	votes := make([]*candidate, fineness)
@@ -175,6 +180,9 @@ func createVoting(candidates []*candidate, fineness int) []*candidate {
 	return votes
 }
 
+// createVotes does the "voting". The argument slice named "voting"
+// is of length fineness, and got filled in by, and returned from,
+// func createVoting.
 func createVotes(voting []*candidate, ballotCount int, fineness int) []string {
 
 	votes := make([]string, ballotCount)
@@ -188,7 +196,11 @@ func createVotes(voting []*candidate, ballotCount int, fineness int) []string {
 	return votes
 }
 
-func countVotes(candidates []*candidate, ballotCount int, lie bool) (string, float64) {
+// findWinner figures out which candidate had the most votes,
+// except when argument lie is true, when it simulates a bad
+// count. It then returns the runner up candidate, with the winner's
+// count of votes.
+func findWinner(candidates []*candidate, ballotCount int, lie bool) (string, float64) {
 
 	winner := candidates[0].name
 	votes := candidates[0].votes
